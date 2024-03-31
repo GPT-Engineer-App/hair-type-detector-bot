@@ -1,0 +1,45 @@
+import os
+import telebot
+import openai
+import requests
+
+# Set up the Telegram bot token and OpenAI API key
+BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN'
+OPENAI_API_KEY = 'YOUR_OPENAI_API_KEY'
+
+# Initialize the Telegram bot and OpenAI API
+bot = telebot.TeleBot(BOT_TOKEN)
+openai.api_key = OPENAI_API_KEY
+
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    bot.reply_to(message, "Welcome! Send me a photo of a human head, and I'll tell you the type of hair depicted.")
+
+@bot.message_handler(content_types=['photo'])
+def handle_photo(message):
+    # Get the file ID of the photo
+    file_id = message.photo[-1].file_id
+
+    # Get the file path of the photo
+    file_path = bot.get_file(file_id).file_path
+
+    # Download the photo from Telegram servers
+    photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+    photo_data = requests.get(photo_url).content
+
+    # Query the OpenAI API to determine the type of hair
+    response = openai.Image.create_edit(
+        image=photo_data,
+        prompt="What type of hair is depicted in the photo?",
+        n=1,
+        size="1024x1024"
+    )
+
+    # Get the generated response from the API
+    hair_type = response['data'][0]['text']
+
+    # Send the response back to the user
+    bot.reply_to(message, f"The type of hair depicted in the photo is: {hair_type}")
+
+# Start the bot
+bot.polling()
